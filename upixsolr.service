@@ -1,0 +1,17 @@
+[Unit]
+Description=Intrexx Solr Search Daemon
+After=syslog.target
+
+[Service]
+Type=forking
+Environment=JAVA_HOME=<%= $java_home %>
+ExecStart=<%= $ix_home %>/solr/bin/solr start
+ExecStop=<%= $ix_home %>/solr/bin/solr stop
+ExecStopPost=-/bin/rm -f <%= $ix_home %>/solr/bin/solr*.pid
+User=<%= $ix_user %>
+Group=<%= $ix_user %>
+LimitNOFILE=65000
+LimitNPROC=65000
+
+[Install]
+WantedBy=multi-user.target

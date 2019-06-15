@@ -1,0 +1,230 @@
+policy_module(intrexx, 1.0.6)
+
+type intrexx_t;
+type intrexx_portal_t;
+type intrexx_supervisor_t;
+type intrexx_solr_t;
+type intrexx_exec_t;
+type intrexx_supervisor_exec_t;
+type intrexx_solr_exec_t;
+type intrexx_portal_exec_t;
+type intrexx_sys_t;
+type intrexx_content_t;
+type intrexx_jsw_port_t;
+type intrexx_supervisor_port_t;
+type intrexx_portal_port_t;
+type intrexx_jolokia_port_t;
+type intrexx_solr_port_t;
+type intrexx_unit_file_t;
+
+require {
+	type mxi_port_t;
+	type net_conf_t;
+	type node_t;
+	type passwd_file_t;
+	type proc_net_t;
+	type proc_t;
+	type random_device_t;
+	type shadow_t;
+	type sysfs_t;
+	type urandom_device_t;
+	type initrc_t;
+}
+
+systemd_unit_file(intrexx_unit_file_t)
+
+files_type(intrexx_sys_t)
+files_type(intrexx_content_t)
+
+corenet_port(intrexx_jsw_port_t)
+corenet_port(intrexx_supervisor_port_t)
+corenet_port(intrexx_portal_port_t)
+corenet_port(intrexx_solr_port_t)
+corenet_port(intrexx_jolokia_port_t)
+
+define(`intrexx_common', `
+	init_daemon_domain($1_t, $1_exec_t)
+
+	miscfiles_read_fonts($1_t)
+	miscfiles_read_public_files($1_t)
+	miscfiles_read_localization($1_t)
+
+	fs_getattr_all_fs($1_t);
+	fs_dontaudit_rw_tmpfs_files($1_t)
+	
+	auth_read_passwd($1_t)
+	auth_use_nsswitch($1_t)
+
+	sysnet_read_config($1_t)
+
+	corecmd_check_exec_shell($1_t)
+	corecmd_exec_bin($1_t)
+	corecmd_search_bin($1_t)
+	 
+	kernel_read_all_sysctls($1_t)
+	kernel_search_vm_sysctl($1_t)
+	kernel_read_network_state($1_t)
+	kernel_read_system_state($1_t)
+	kernel_read_unix_sysctls($1_t)
+	 
+	files_read_etc_files($1_t)
+	fs_read_cgroup_files($1_t)
+	files_read_etc_runtime_files($1_t)
+	files_manage_generic_tmp_dirs($1_t)
+	files_manage_generic_tmp_files($1_t)
+
+	userdom_tmpfs_filetrans($1_t, { file dir })
+	userdom_manage_user_tmp_files($1_t)
+
+	dev_read_rand($1_t)
+	dev_read_sysfs($1_t)
+	dev_dontaudit_append_rand($1_t)
+	dev_manage_sysfs_dirs($1_t)
+	
+	logging_send_syslog_msg($1_t)
+	
+	manage_dirs_pattern($1_t, intrexx_sys_t, intrexx_sys_t)
+	manage_files_pattern($1_t, intrexx_sys_t, intrexx_sys_t)
+	manage_dirs_pattern($1_t, intrexx_content_t, intrexx_content_t)
+	manage_files_pattern($1_t, intrexx_content_t, intrexx_content_t)
+	
+	corenet_tcp_bind_generic_node($1_t)
+	corenet_tcp_bind_http_port($1_t)
+	corenet_tcp_bind_http_cache_port($1_t)
+
+#allow vis_ws_t vis_ws_port_t:tcp_socket { setopt bind create accept getattr shutdown getopt listen name_bind };
+#allow vis_ws_t vis_ws_port_t:udp_socket { setopt bind create accept getattr shutdown getopt listen name_bind };
+
+	allow $1_t self:process { signal_perms getsched setsched };
+	allow $1_t self:fifo_file rw_fifo_file_perms;
+	allow $1_t self:unix_stream_socket create_stream_socket_perms;
+	allow $1_t self:tcp_socket { setopt bind create accept getattr shutdown getopt listen };
+	allow $1_t self:udp_socket { getattr ioctl create connect };
+	
+	allow $1_t random_device_t:chr_file { read getattr open };
+	allow $1_t urandom_device_t:chr_file { read getattr open };
+	allow $1_t proc_net_t:file { read getattr open };
+
+	# Tomcat shutdown port	
+	allow $1_t mxi_port_t:tcp_socket name_bind;
+	
+	# Java Service Wrapper
+	# semanage port -a -t intrexx_jsw_port_t -p tcp "31000-32999"
+	allow $1_t intrexx_jsw_port_t:tcp_socket { name_connect name_bind };
+	# Jolokia Bind Port
+	# semanage port -a -t intrexx_jolokia_port_t -p tcp "8880-8883"
+	allow $1_t intrexx_jolokia_port_t:tcp_socket { name_connect name_bind };
+
+	files_dontaudit_getattr_all_dirs($1_t)
+	files_dontaudit_getattr_all_files($1_t)
+	files_dontaudit_search_all_dirs($1_t)
+	files_dontaudit_search_all_pids($1_t)
+	
+	gen_tunable($1_execmem, false)
+	tunable_policy(`$1_execmem',`
+		allow $1_t self:process execmem;
+	')
+
+	gen_tunable($1_allow_anon_write, false)
+	tunable_policy(`$1_allow_anon_write',`
+		miscfiles_manage_public_files($1_t)
+	')
+
+	gen_tunable($1_exec_cmds, false)
+	tunable_policy(`$1_exec_cmds',`
+		corecmd_check_exec_shell($1_t)
+		corecmd_exec_bin($1_t)
+	')
+')
+
+define(`allow_service_check', `
+	allow $1_t intrexx_solr_t:process signull;
+	allow $1_t intrexx_supervisor_t:process signull;
+	allow $1_t intrexx_portal_t:process signull;
+	allow $1_t initrc_t:process signull;
+')
+
+define(`http_connect', `
+	corenet_tcp_connect_http_cache_port($1_t)
+	corenet_tcp_connect_http_port($1_t)
+	corenet_tcp_connect_squid_port($1_t)
+')
+
+define(`tcp_bind',`
+	gen_require(`
+		type $2_port_t;
+	')
+
+	allow $1_t $2_port_t:tcp_socket name_bind;
+	allow $1_t self:capability net_bind_service;
+')
+
+define(`systemd_domain_trans',`
+	domain_trans(init_t, intrexx_exec_t, $1_t)
+	allow $1_t intrexx_exec_t:file { read execute open getattr execute_no_trans };
+	allow $1_t shell_exec_t:file entrypoint;
+')
+
+intrexx_common(intrexx)
+intrexx_common(intrexx_portal)
+intrexx_common(intrexx_supervisor)
+intrexx_common(intrexx_solr)
+
+allow_service_check(intrexx_supervisor)
+allow_service_check(intrexx_portal)
+allow_service_check(intrexx_solr)
+
+auth_dontaudit_getattr_shadow(intrexx_portal_t)
+
+# semanage port -a -t intrexx_supervisor_port_t -p tcp "7960"
+tcp_bind(intrexx_supervisor, intrexx_supervisor)
+# semanage port -a -t intrexx_portal_port_t -p tcp "8101,1234,8103"
+tcp_bind(intrexx_portal, intrexx_portal)
+# semanage port -a -t intrexx_solr_port_t -p tcp "8983"
+tcp_bind(intrexx_solr, intrexx_solr)
+
+corenet_tcp_connect_intrexx_solr_port(intrexx_supervisor_t)
+corenet_tcp_connect_intrexx_solr_port(intrexx_portal_t)
+
+# Necessary for license check
+http_connect(intrexx_supervisor)
+http_connect(intrexx_portal)
+
+
+
+## Tunables
+gen_tunable(intrexx_http_connect, false)
+tunable_policy(`intrexx_http_connect',`
+http_connect(intrexx_portal)
+')
+
+gen_tunable(intrexx_mysql_connect, false)
+tunable_policy(`intrexx_mysql_connect',`
+corenet_tcp_connect_mysqld_port(intrexx_portal_t)
+corenet_tcp_connect_mysqld_port(intrexx_supervisor_t)
+')
+ 
+gen_tunable(intrexx_oracle_connect, false)
+tunable_policy(`intrexx_oracle_connect',`
+corenet_tcp_connect_oracle_port(intrexx_portal_t)
+corenet_tcp_connect_oracle_port(intrexx_supervisor_t)
+')
+ 
+gen_tunable(intrexx_ldap_connect, false)
+tunable_policy(`intrexx_ldap_connect',`
+corenet_tcp_connect_ldap_port(intrexx_portal_t)
+corenet_tcp_connect_ldap_port(intrexx_supervisor_t)
+')
+ 
+gen_tunable(intrexx_smtp_connect, false)
+tunable_policy(`intrexx_smtp_connect',`
+corenet_tcp_connect_smtp_port(intrexx_portal_t)
+corenet_tcp_connect_smtp_port(intrexx_supervisor_t)
+')
+
+# Includes all email client ports. IMAP as well.
+gen_tunable(intrexx_pop_connect, false)
+tunable_policy(`intrexx_pop_connect',`
+corenet_tcp_connect_pop_port(intrexx_portal_t)
+corenet_tcp_connect_pop_port(intrexx_supervisor_t)
+')

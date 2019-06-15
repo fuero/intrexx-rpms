@@ -1,0 +1,16 @@
+[Unit]
+Description=Intrexx %i Portal
+After=syslog.target
+
+[Service]
+Type=forking
+ExecStart=/bin/bash <%= $ix_home %>/bin/linux/upixp_%i start
+ExecStop=/bin/bash <%= $ix_home %>/bin/linux/upixp_%i stop
+ExecStopPost=-/bin/rm -f <%= $ix_home %>/org/%i/portal.pid 
+ExecStopPost=-/bin/rm -f <%= $ix_home %>/bin/linux/upixp_%i.pid 
+User=<%= $ix_user %>
+Group=<%= $ix_user %>
+
+[Install]
+WantedBy=multi-user.target
+Alias=upixp-%i.service

@@ -1,0 +1,15 @@
+interface(`corenet_tcp_connect_intrexx_portal_port',`
+        gen_require(`
+                type intrexx_portal_port_t;
+        ')
+
+        allow $1 intrexx_portal_port_t:tcp_socket name_connect;
+')
+
+interface(`corenet_tcp_connect_intrexx_solr_port',`
+        gen_require(`
+                type intrexx_solr_port_t;
+        ')
+
+        allow $1 intrexx_solr_port_t:tcp_socket name_connect;
+')

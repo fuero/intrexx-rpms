@@ -1,0 +1,13 @@
+[Unit]
+Description=Intrexx Supervisor Daemon
+After=syslog.target
+
+[Service]
+Type=simple
+ExecStart=<%= $ix_home %>/bin/linux/supervisor.sh start
+ExecStopPost=-/usr/bin/rm -f <%= $ix_home %>/supervisor.pid
+User=<%= $ix_user %>
+Group=<%= $ix_user %>
+
+[Install]
+WantedBy=multi-user.target

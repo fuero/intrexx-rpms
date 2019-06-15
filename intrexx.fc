@@ -1,0 +1,15 @@
+<%= $instdir %>(/.*)?								gen_context(system_u:object_r:intrexx_sys_t,s0)
+<%= $instdir %>/org/[^/]+(/.*)?							gen_context(system_u:object_r:intrexx_content_t,s0)
+
+<%= $instdir %>/bin/linux/[^/]+.sh			--			gen_context(system_u:object_r:bin_t,s0)
+
+<%= $instdir %>/solr/bin/solr				--			gen_context(system_u:object_r:intrexx_solr_exec_t,s0)
+<%= $instdir %>/bin/linux/supervisor.sh			--			gen_context(system_u:object_r:intrexx_supervisor_exec_t,s0)
+<%= $instdir %>/bin/linux/upixp_[^/]+$			--			gen_context(system_u:object_r:intrexx_portal_exec_t,s0)
+
+<%= $instdir %>/bin/linux/uposarch			--			gen_context(system_u:object_r:bin_t,s0)
+<%= $instdir %>/bin/linux/upwhich 			--			gen_context(system_u:object_r:bin_t,s0)
+
+<%= $instdir %>/.+\.jar                            	--       		system_u:object_r:lib_t:s0
+<%= $instdir %>/.+\.jsa                            	--       		system_u:object_r:lib_t:s0
+<%= $instdir %>/.+\.so(\.[^/]*)*                   	--       		system_u:object_r:textrel_shlib_t:s0
